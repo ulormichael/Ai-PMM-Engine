@@ -12,6 +12,11 @@ portfolio artifact — the interface itself is the deliverable, not a slide desc
 
 ## What's in it
 
+- **Live Lab** — paste customer feedback and run it through the Research, Messaging, and
+  Content agents with a human approval gate between stages. Guardrails are enforced in
+  code: quotes must appear verbatim in the sources (otherwise the theme is blocked),
+  themes under 3 sources are flagged "directional," headline/subhead word limits and
+  unverified superlatives are checked, and every run produces an audit log and Markdown export.
 - **The Pipeline** — the 9-stage cycle from customer interviews to AI-recommended
   optimization, including the loop-back from Analytics to Research on low-confidence
   findings.
@@ -62,6 +67,15 @@ ai-pmm-engine/
     ├── AIPMMEngine.jsx   # The full application (pipeline, agents, outputs, etc.)
     └── index.css         # Tailwind directives
 ```
+
+## Notes on the Live Lab
+
+The Lab calls the Claude API directly from the browser, which works inside Claude's
+artifact preview but **will not work in this standalone repo without a backend proxy** —
+never ship an API key in frontend code. Without API access it automatically falls back to
+a local keyword heuristic and labels each result with the engine that produced it. To enable
+Claude in your deployment, route `callClaude()` in `src/AIPMMEngine.jsx` through a small
+server endpoint (e.g. a Vercel/Netlify function) that holds the key.
 
 ## Notes on the content
 

@@ -20,6 +20,10 @@ import {
   AlertTriangle,
   Menu,
   X,
+  Play,
+  Check,
+  RotateCcw,
+  Copy,
   Code2,
   ArrowUpRight,
 } from "lucide-react";
@@ -30,12 +34,13 @@ import {
 
 const SECTIONS = [
   { id: "overview", label: "Overview", num: "00" },
-  { id: "pipeline", label: "The Pipeline", num: "01" },
-  { id: "agents", label: "Agent Architecture", num: "02" },
-  { id: "outputs", label: "Example Outputs", num: "03" },
-  { id: "metrics", label: "Impact & Metrics", num: "04" },
-  { id: "governance", label: "Governance", num: "05" },
-  { id: "stack", label: "Tech Stack", num: "06" },
+  { id: "lab", label: "Live Lab", num: "01" },
+  { id: "pipeline", label: "The Pipeline", num: "02" },
+  { id: "agents", label: "Agent Architecture", num: "03" },
+  { id: "outputs", label: "Example Outputs", num: "04" },
+  { id: "metrics", label: "Impact & Metrics", num: "05" },
+  { id: "governance", label: "Governance", num: "06" },
+  { id: "stack", label: "Tech Stack", num: "07" },
 ];
 
 const PIPELINE = [
@@ -380,10 +385,16 @@ function Overview({ go }) {
 
         <div className="flex flex-wrap gap-3 mt-8">
           <button
-            onClick={() => go("pipeline")}
+            onClick={() => go("lab")}
             className="inline-flex items-center gap-2 rounded-lg bg-accent text-bg font-medium text-sm px-5 py-2.5 hover:opacity-90 transition-opacity"
           >
-            Walk the pipeline <ArrowRight size={16} />
+            Try the live lab <ArrowRight size={16} />
+          </button>
+          <button
+            onClick={() => go("pipeline")}
+            className="inline-flex items-center gap-2 rounded-lg border border-hair text-text font-medium text-sm px-5 py-2.5 hover:border-accent transition-colors"
+          >
+            Walk the pipeline
           </button>
           <button
             onClick={() => go("agents")}
@@ -467,7 +478,7 @@ function Overview({ go }) {
 function PipelineSection() {
   return (
     <div>
-      <Eyebrow>01 — The Pipeline</Eyebrow>
+      <Eyebrow>02 — The Pipeline</Eyebrow>
       <h2 className="font-display text-3xl font-semibold mb-3">Customer signal to shipped optimization</h2>
       <p className="text-dim max-w-2xl leading-relaxed mb-10">
         The cycle is linear until stage 09, where low-confidence findings loop back to the
@@ -508,7 +519,7 @@ function AgentsSection() {
   const [open, setOpen] = useState("research");
   return (
     <div>
-      <Eyebrow>02 — Agent Architecture</Eyebrow>
+      <Eyebrow>03 — Agent Architecture</Eyebrow>
       <h2 className="font-display text-3xl font-semibold mb-3">Five agents, five contracts</h2>
       <p className="text-dim max-w-2xl leading-relaxed mb-10">
         Each agent has a narrow mandate on purpose. A single mega-prompt trying to research,
@@ -600,7 +611,7 @@ function AgentsSection() {
 function OutputsSection() {
   return (
     <div>
-      <Eyebrow>03 — Example Outputs</Eyebrow>
+      <Eyebrow>04 — Example Outputs</Eyebrow>
       <h2 className="font-display text-3xl font-semibold mb-3">What comes out the other end</h2>
       <p className="text-dim max-w-2xl leading-relaxed mb-3">
         Illustrative example for a fictional product, "DeployPilot" (a CI/CD reliability tool for
@@ -642,7 +653,7 @@ function OutputsSection() {
 function MetricsSection() {
   return (
     <div>
-      <Eyebrow>04 — Impact & Metrics</Eyebrow>
+      <Eyebrow>05 — Impact & Metrics</Eyebrow>
       <h2 className="font-display text-3xl font-semibold mb-3">Where the time actually goes back</h2>
       <p className="text-dim max-w-2xl leading-relaxed mb-3">
         First-draft creation time drops sharply. Review, judgment, and stakeholder alignment
@@ -690,7 +701,7 @@ function MetricsSection() {
 function GovernanceSection() {
   return (
     <div>
-      <Eyebrow>05 — Governance</Eyebrow>
+      <Eyebrow>06 — Governance</Eyebrow>
       <h2 className="font-display text-3xl font-semibold mb-3">Speed without a governance layer isn't an asset</h2>
       <p className="text-dim max-w-2xl leading-relaxed mb-10">
         Every agent's prompt in this system was written with these checks in mind — not added
@@ -720,7 +731,7 @@ function GovernanceSection() {
 function StackSection() {
   return (
     <div>
-      <Eyebrow>06 — Tech Stack</Eyebrow>
+      <Eyebrow>07 — Tech Stack</Eyebrow>
       <h2 className="font-display text-3xl font-semibold mb-3">The stack behind each agent</h2>
       <p className="text-dim max-w-2xl leading-relaxed mb-3">
         Tool names are illustrative — swap in your team's actual stack. The architecture, agent
@@ -762,6 +773,554 @@ function StackSection() {
 }
 
 /* ---------------------------------------------------------
+   LIVE LAB — logic
+--------------------------------------------------------- */
+
+const SAMPLE_FEEDBACK = `We get 40 Slack pings a day and stopped trusting any of them. Half the alerts are noise from services nobody owns.
+
+By the time we agree to roll back, the damage is already done. Nobody wants to make the call at 2am.
+
+Our on-call engineer ignores most alerts now. Too many alerts, and the real incident gets buried in the noise.
+
+Dashboards tell me something changed, not whether it matters. I still have to dig through logs to decide.
+
+We tried tuning alert thresholds for months. Too many alerts still fire after every deploy.
+
+Rolling back is scary because I can't see what else it will touch before I commit.
+
+I stopped trusting alerts after the third false alarm last week. We mute the channel during deploys.`;
+
+const STOP = new Set(
+  "about after again also because before being could every first from have just like make more most much never nobody only other should still their them then there these they this those through very want were what when where which while with without would your".split(" ")
+);
+
+const BANNED = /best-in-class|revolutionary|world-class|cutting-edge|game-chang|#1|industry-leading/i;
+
+const norm = (s) =>
+  String(s).toLowerCase().replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/\s+/g, " ").trim();
+const normQuote = (s) => norm(s).replace(/^[\s"'.…]+|[\s"'.…]+$/g, "");
+const wc = (s) => String(s || "").trim().split(/\s+/).filter(Boolean).length;
+
+function parseSources(text) {
+  return text
+    .split(/\n\s*\n/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((t, i) => ({ id: `INT-${String(i + 1).padStart(2, "0")}`, text: t }));
+}
+
+async function callClaude(system, user) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 30000);
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        system,
+        messages: [{ role: "user", content: user }],
+      }),
+    });
+    if (!res.ok) throw new Error("API " + res.status);
+    const data = await res.json();
+    const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+    return JSON.parse(text.replace(/```json|```/g, "").trim());
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* Research */
+async function claudeResearch(sources) {
+  const out = await callClaude(
+    "You are a B2B research analyst. Only report patterns directly supported by the sources. Never invent quotes: each quote must be copied verbatim from one source (one sentence max). Reply with JSON only.",
+    `Sources:\n${sources.map((s) => `[${s.id}] ${s.text}`).join("\n\n")}\n\nTask: cluster the pain points into at most 4 themes. Output JSON: {"themes":[{"name":"","quote":"","sourceIds":["INT-01"]}]}`
+  );
+  if (!Array.isArray(out.themes)) throw new Error("bad shape");
+  return out.themes;
+}
+
+function localResearch(sources) {
+  const df = {};
+  sources.forEach((s) => {
+    const words = new Set((s.text.toLowerCase().match(/[a-z']{5,}/g) || []).filter((w) => !STOP.has(w)));
+    words.forEach((w) => (df[w] = (df[w] || 0) + 1));
+  });
+  const top = Object.entries(df).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const seen = new Set();
+  const themes = [];
+  top.forEach(([w]) => {
+    const re = new RegExp("\\b" + w, "i");
+    const ids = sources.filter((s) => re.test(s.text)).map((s) => s.id);
+    const key = ids.join();
+    if (seen.has(key) || themes.length >= 4) return;
+    seen.add(key);
+    const first = sources.find((s) => s.id === ids[0]);
+    const sentence = (first.text.match(/[^.!?]+[.!?]?/g) || [first.text]).find((x) => re.test(x)) || first.text;
+    themes.push({ name: `Recurring signal: "${w}"`, quote: sentence.trim(), sourceIds: ids });
+  });
+  return themes;
+}
+
+/* Guardrail enforced in code, not trusted to the model */
+function finalizeThemes(raw, sources) {
+  const valid = new Set(sources.map((s) => s.id));
+  return raw
+    .slice(0, 5)
+    .map((t) => {
+      const ids = [...new Set((t.sourceIds || []).filter((id) => valid.has(id)))];
+      const quote = String(t.quote || "").trim();
+      const nq = normQuote(quote);
+      const verified =
+        nq.length > 0 && ids.some((id) => norm(sources.find((s) => s.id === id).text).includes(nq));
+      return {
+        name: String(t.name || "Untitled theme"),
+        quote,
+        sourceIds: ids,
+        frequency: ids.length,
+        confidence: ids.length >= 3 ? "supported" : "directional — low sample",
+        verified,
+        rejected: !verified,
+      };
+    })
+    .sort((a, b) => b.frequency - a.frequency);
+}
+
+/* Messaging */
+async function claudeMessaging(product, audience, themes) {
+  const out = await callClaude(
+    "You are a positioning strategist. The product description is the ONLY source of capabilities; never claim anything beyond it. If a pillar has no support in the description, set proof to \"needs validation\". Reply with JSON only.",
+    `Product: ${product}\nAudience: ${audience}\nApproved pain-point themes:\n${themes.map((t) => `- ${t.name} (n=${t.frequency}): "${t.quote}"`).join("\n")}\n\nOutput JSON: {"positioning":"one paragraph","pillars":[{"title":"","proof":""}]} with exactly 3 pillars.`
+  );
+  if (!out.positioning || !Array.isArray(out.pillars) || !out.pillars.length) throw new Error("bad shape");
+  return out;
+}
+
+function localMessaging(product, audience, themes) {
+  return {
+    positioning: `For ${audience}, ${product} is built to address ${themes[0].name.toLowerCase()}. [Local template draft — needs PMM rewrite]`,
+    pillars: themes.slice(0, 3).map((t) => ({ title: t.name, proof: "needs validation" })),
+  };
+}
+
+/* Content */
+async function claudeContent(msg) {
+  const out = await callClaude(
+    "You write landing copy using only the approved pillars. Headline max 12 words, subhead max 30 words. No unverified superlatives. Reply with JSON only.",
+    `Positioning: ${msg.positioning}\nPillars:\n${msg.pillars.map((p) => `- ${p.title}: ${p.proof}`).join("\n")}\n\nOutput JSON: {"headline":"","subhead":"","emailSubject":""}`
+  );
+  if (!out.headline || !out.subhead) throw new Error("bad shape");
+  return out;
+}
+
+function localContent(msg) {
+  return { headline: msg.pillars[0].title, subhead: msg.positioning, emailSubject: msg.pillars[0].title };
+}
+
+/* ---------------------------------------------------------
+   LIVE LAB — UI
+--------------------------------------------------------- */
+
+const btnPrimary =
+  "inline-flex items-center gap-2 rounded-lg bg-accent text-bg font-medium text-sm px-4 py-2 hover:opacity-90 transition-opacity";
+const btnGhost =
+  "inline-flex items-center gap-2 rounded-lg border border-hair text-dim text-sm px-3 py-2 hover:text-text transition-colors";
+const btnApprove =
+  "inline-flex items-center gap-2 rounded-lg border border-amber text-amber bg-amber-soft font-medium text-sm px-4 py-2";
+const fieldCls =
+  "w-full rounded-lg border border-hair bg-panel3 text-text text-sm p-3 leading-relaxed";
+
+function StageCard({ n, title, agent, state, children }) {
+  const locked = state === "locked";
+  return (
+    <div className={`rounded-xl border bg-panel px-5 py-5 md:px-6 ${state === "done" ? "border-accent" : "border-hair"} ${locked ? "opacity-50" : ""}`}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-4">
+        <span className="font-mono text-xs text-faint">{n}</span>
+        <h3 className="font-display text-lg font-semibold text-text">{title}</h3>
+        <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-accent-soft text-accent">{agent}</span>
+        {state === "done" && (
+          <span className="font-mono text-[11px] text-accent flex items-center gap-1">
+            <Check size={12} /> approved
+          </span>
+        )}
+        {locked && <span className="font-mono text-[11px] text-faint">locked until the previous stage is approved</span>}
+      </div>
+      {!locked && children}
+    </div>
+  );
+}
+
+function LabSection() {
+  const [feedback, setFeedback] = useState("");
+  const [product, setProduct] = useState("");
+  const [audience, setAudience] = useState("");
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const [themes, setThemes] = useState(null);
+  const [researchOk, setResearchOk] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const [msgOk, setMsgOk] = useState(false);
+  const [asset, setAsset] = useState(null);
+  const [engines, setEngines] = useState({});
+  const [log, setLog] = useState([]);
+  const [showExport, setShowExport] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [sessions, setSessions] = useState("");
+  const [weeks, setWeeks] = useState("");
+
+  const sources = parseSources(feedback);
+  const active = (themes || []).filter((t) => !t.rejected);
+
+  const addLog = (stage, eng, note) =>
+    setLog((l) => [...l, { t: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), stage, eng, note }]);
+
+  const clearFrom = (stage) => {
+    if (stage === "research") {
+      setThemes(null);
+      setResearchOk(false);
+    }
+    if (stage === "research" || stage === "messaging") {
+      setMsg(null);
+      setMsgOk(false);
+    }
+    setAsset(null);
+    setShowExport(false);
+  };
+
+  const run = async (stage, claudeFn, localFn, onDone) => {
+    setError("");
+    setBusy(stage);
+    clearFrom(stage);
+    let result;
+    let used = "Claude";
+    try {
+      result = await claudeFn();
+    } catch (e) {
+      result = localFn();
+      used = "Local heuristic";
+    }
+    onDone(result, used);
+    setEngines((x) => ({ ...x, [stage]: used }));
+    setBusy("");
+  };
+
+  const runResearch = () =>
+    run("research", () => claudeResearch(sources), () => localResearch(sources), (raw, used) => {
+      const final = finalizeThemes(raw, sources);
+      if (!final.length) {
+        setError("No recurring themes found. Add more sources — separate each one with a blank line.");
+        return;
+      }
+      setThemes(final);
+      addLog("Research", used, `${final.length} themes from ${sources.length} sources`);
+    });
+
+  const runMessaging = () =>
+    run("messaging", () => claudeMessaging(product, audience, active), () => localMessaging(product, audience, active), (res, used) => {
+      setMsg(res);
+      addLog("Messaging", used, `${res.pillars.length} pillars drafted`);
+    });
+
+  const runContent = () =>
+    run("content", () => claudeContent(msg), () => localContent(msg), (res, used) => {
+      setAsset(res);
+      addLog("Content", used, "hero copy drafted");
+    });
+
+  const toggle = (i) =>
+    setThemes((ts) => ts.map((t, j) => (j === i && t.verified ? { ...t, rejected: !t.rejected } : t)));
+
+  const reopenResearch = () => {
+    setResearchOk(false);
+    setMsg(null);
+    setMsgOk(false);
+    setAsset(null);
+    setShowExport(false);
+  };
+
+  const resetAll = () => {
+    setFeedback("");
+    setProduct("");
+    setAudience("");
+    setError("");
+    setLog([]);
+    setEngines({});
+    clearFrom("research");
+  };
+
+  const markdown = () =>
+    [
+      "# AI PMM Engine — Run Summary",
+      "_DRAFT — requires PMM review before any external use._",
+      "",
+      "## Approved pain-point themes",
+      ...active.map((t) => `- **${t.name}** (n=${t.frequency}, ${t.confidence}) — "${t.quote}" [${t.sourceIds.join(", ")}]`),
+      "",
+      "## Positioning",
+      msg ? msg.positioning : "",
+      "",
+      "## Pillars",
+      ...(msg ? msg.pillars.map((p) => `- **${p.title}** — proof: ${p.proof}`) : []),
+      "",
+      "## Draft copy",
+      asset ? `- Headline: ${asset.headline}\n- Subhead: ${asset.subhead}\n- Email subject: ${asset.emailSubject || ""}` : "",
+      "",
+      "## Audit log",
+      ...log.map((l) => `- ${l.t} · ${l.stage} · ${l.eng} · ${l.note}`),
+    ].join("\n");
+
+  const copyMd = async () => {
+    try {
+      await navigator.clipboard.writeText(markdown());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch (e) {
+      setCopied(false);
+    }
+  };
+
+  const sN = Number(sessions);
+  const wN = Number(weeks);
+  const gateFilled = sessions !== "" && weeks !== "";
+  const gateOk = sN >= 200 && wN >= 4;
+
+  return (
+    <div>
+      <Eyebrow>01 — Live Lab</Eyebrow>
+      <h2 className="font-display text-3xl font-semibold mb-3">Run the pipeline on your own data</h2>
+      <p className="text-dim max-w-2xl leading-relaxed mb-5">
+        Paste customer feedback and walk it through three agents. Each stage stops at a human
+        approval gate, and the guardrails below are enforced in code, not left to the model.
+      </p>
+      <div className="rounded-lg border border-hair bg-panel px-4 py-3 mb-8 max-w-2xl">
+        <div className="flex gap-2 text-xs text-amber font-mono mb-1.5 items-center">
+          <AlertTriangle size={12} /> Flags for your judgment
+        </div>
+        <ul className="text-xs text-dim leading-relaxed space-y-1">
+          <li>Pasted text is sent to the Claude API when available. Anonymize customer data first.</li>
+          <li>If the API is unreachable, a keyword-based local fallback runs instead, and each result says which engine produced it.</li>
+          <li>In the standalone GitHub repo the API call will not work without a backend proxy. Never ship an API key in frontend code.</li>
+        </ul>
+      </div>
+
+      <div className="space-y-5">
+        {/* 01 Research */}
+        <StageCard n="01" title="Analyze feedback" agent="Research Agent" state={researchOk ? "done" : "ready"}>
+          <textarea
+            className={`${fieldCls} font-mono`}
+            rows={8}
+            value={feedback}
+            onChange={(e) => {
+              setFeedback(e.target.value);
+            }}
+            disabled={researchOk}
+            placeholder="Paste interview excerpts. Separate each source with a blank line."
+          />
+          <div className="flex flex-wrap items-center gap-3 mt-3">
+            <span className="font-mono text-[11px] text-faint">{sources.length} sources detected (need 2+)</span>
+            <div className="ml-auto flex flex-wrap gap-2">
+              {!researchOk && (
+                <button className={btnGhost} onClick={() => setFeedback(SAMPLE_FEEDBACK)}>
+                  Load sample
+                </button>
+              )}
+              <button className={btnGhost} onClick={resetAll}>
+                <RotateCcw size={14} /> Reset
+              </button>
+              {!researchOk && (
+                <button className={btnPrimary} disabled={sources.length < 2 || !!busy} onClick={runResearch}>
+                  <Play size={14} /> {busy === "research" ? "Analyzing…" : "Run Research Agent"}
+                </button>
+              )}
+            </div>
+          </div>
+          {error && <div className="mt-3 text-sm text-rose">{error}</div>}
+
+          {themes && (
+            <div className="mt-6 space-y-3">
+              <div className="font-mono text-[11px] text-faint">
+                Engine: {engines.research} · source IDs validated and confidence assigned in code
+              </div>
+              {themes.map((t, i) => (
+                <div key={i} className={`rounded-lg border border-hair bg-panel3 px-4 py-3 ${t.rejected ? "opacity-50" : ""}`}>
+                  <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                    <span className="text-sm font-medium text-text">{t.name}</span>
+                    <span className="font-mono text-[11px] text-dim">n={t.frequency}</span>
+                    <span className={`font-mono text-[11px] px-2 py-0.5 rounded ${t.confidence === "supported" ? "bg-accent-soft text-accent" : "bg-amber-soft text-amber"}`}>
+                      {t.confidence}
+                    </span>
+                    {!t.verified && (
+                      <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-rose-soft text-rose">
+                        quote not found in sources — blocked
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-dim leading-relaxed">“{t.quote}”</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="font-mono text-[11px] text-faint">{t.sourceIds.join(", ") || "no valid source"}</span>
+                    {t.verified && !researchOk && (
+                      <button className="font-mono text-[11px] text-accent hover:underline" onClick={() => toggle(i)}>
+                        {t.rejected ? "Include" : "Exclude"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-center gap-3 pt-1">
+                {!researchOk ? (
+                  <button className={btnApprove} disabled={!active.length} onClick={() => setResearchOk(true)}>
+                    <Check size={14} /> Approve {active.length} theme{active.length === 1 ? "" : "s"} &amp; continue
+                  </button>
+                ) : (
+                  <button className="font-mono text-[11px] text-faint hover:text-text" onClick={reopenResearch}>
+                    Reopen this stage (clears later stages)
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </StageCard>
+
+        {/* 02 Messaging */}
+        <StageCard n="02" title="Draft positioning & pillars" agent="Messaging Agent" state={!researchOk ? "locked" : msgOk ? "done" : "ready"}>
+          <div className="grid md:grid-cols-2 gap-3">
+            <input
+              className={fieldCls}
+              value={product}
+              onChange={(e) => setProduct(e.target.value)}
+              disabled={msgOk}
+              placeholder="What does your product do? (one line)"
+            />
+            <input
+              className={fieldCls}
+              value={audience}
+              onChange={(e) => setAudience(e.target.value)}
+              disabled={msgOk}
+              placeholder="Who is it for? e.g. platform engineering teams"
+            />
+          </div>
+          {!msgOk && (
+            <div className="mt-3">
+              <button className={btnPrimary} disabled={!product.trim() || !audience.trim() || !!busy} onClick={runMessaging}>
+                <Play size={14} /> {busy === "messaging" ? "Drafting…" : "Run Messaging Agent"}
+              </button>
+            </div>
+          )}
+          {msg && (
+            <div className="mt-6 space-y-3">
+              <div className="font-mono text-[11px] text-faint">Engine: {engines.messaging}</div>
+              <div className="rounded-lg border border-hair bg-panel3 px-4 py-3">
+                <div className="font-mono text-[11px] uppercase tracking-widest text-faint mb-1.5">Positioning</div>
+                <p className="text-sm text-text leading-relaxed">{msg.positioning}</p>
+              </div>
+              {msg.pillars.map((p, i) => (
+                <div key={i} className="rounded-lg border border-hair bg-panel3 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm text-text">{p.title}</span>
+                  <span className={`font-mono text-[11px] px-2 py-0.5 rounded ${p.proof === "needs validation" ? "bg-amber-soft text-amber" : "bg-accent-soft text-accent"}`}>
+                    {p.proof}
+                  </span>
+                </div>
+              ))}
+              {msg.pillars.some((p) => p.proof === "needs validation") && (
+                <p className="text-xs text-amber">A PMM must supply or verify proof for every “needs validation” pillar before anything ships.</p>
+              )}
+              {!msgOk && (
+                <button className={btnApprove} onClick={() => setMsgOk(true)}>
+                  <Check size={14} /> Approve messaging &amp; continue
+                </button>
+              )}
+            </div>
+          )}
+        </StageCard>
+
+        {/* 03 Content */}
+        <StageCard n="03" title="Generate campaign copy" agent="Content Agent" state={!msgOk ? "locked" : asset ? "done" : "ready"}>
+          <button className={btnPrimary} disabled={!!busy} onClick={runContent}>
+            <Play size={14} /> {busy === "content" ? "Writing…" : asset ? "Regenerate" : "Run Content Agent"}
+          </button>
+          {asset && (
+            <div className="mt-6 space-y-3">
+              <div className="font-mono text-[11px] text-faint">Engine: {engines.content}</div>
+              {[
+                ["Headline", asset.headline, 12],
+                ["Subhead", asset.subhead, 30],
+                ["Email subject", asset.emailSubject, 12],
+              ]
+                .filter(([, v]) => v)
+                .map(([label, value, max]) => {
+                  const over = wc(value) > max;
+                  const banned = BANNED.test(value);
+                  return (
+                    <div key={label} className="rounded-lg border border-hair bg-panel3 px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="font-mono text-[11px] uppercase tracking-widest text-faint">{label}</span>
+                        <span className={`font-mono text-[11px] ${over ? "text-amber" : "text-accent"}`}>
+                          {wc(value)}/{max} words
+                        </span>
+                        {banned && <span className="font-mono text-[11px] text-rose">unverified superlative</span>}
+                      </div>
+                      <p className="text-sm text-text leading-relaxed">{value}</p>
+                    </div>
+                  );
+                })}
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button className={btnGhost} onClick={() => setShowExport(!showExport)}>
+                  {showExport ? "Hide export" : "Export run as Markdown"}
+                </button>
+              </div>
+              {showExport && (
+                <div>
+                  <textarea readOnly className={`${fieldCls} font-mono text-[12px]`} rows={10} value={markdown()} />
+                  <button className={`${btnGhost} mt-2`} onClick={copyMd}>
+                    <Copy size={14} /> {copied ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </StageCard>
+
+        {/* 04 Analytics gate */}
+        <StageCard n="04" title="Check before acting on performance data" agent="Analytics Agent" state="ready">
+          <div className="grid grid-cols-2 gap-3 max-w-md">
+            <input className={fieldCls} type="number" min="0" value={sessions} onChange={(e) => setSessions(e.target.value)} placeholder="Sessions (n)" />
+            <input className={fieldCls} type="number" min="0" value={weeks} onChange={(e) => setWeeks(e.target.value)} placeholder="Weeks of data" />
+          </div>
+          {gateFilled && (
+            <div className={`mt-3 rounded-lg px-4 py-3 text-sm ${gateOk ? "bg-accent-soft text-accent" : "bg-amber-soft text-amber"}`}>
+              {gateOk
+                ? "Gate passed: a messaging recommendation is allowed. Confidence is still medium at best until you test significance."
+                : `Gate blocked: ${sN < 200 ? `needs 200+ sessions (you have ${sN})` : ""}${sN < 200 && wN < 4 ? " and " : ""}${wN < 4 ? `needs 4+ weeks (you have ${wN})` : ""}. Hold the messaging change.`}
+            </div>
+          )}
+          <p className="text-xs text-faint mt-3 leading-relaxed">
+            The 200 sessions / 4 weeks floor is a heuristic rule set for this system, not a statistical power calculation.
+            Set your own threshold from your real traffic. [SOURCE: project governance rule, not an external benchmark]
+          </p>
+        </StageCard>
+
+        {/* Audit log */}
+        {log.length > 0 && (
+          <div className="rounded-xl border border-hair bg-panel px-5 py-5 md:px-6">
+            <div className="font-mono text-[11px] uppercase tracking-widest text-faint mb-3">Audit log · this session</div>
+            <ul className="space-y-1.5">
+              {log.map((l, i) => (
+                <li key={i} className="font-mono text-[12px] text-dim">
+                  {l.t} · {l.stage} · {l.eng} · {l.note}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
    ROOT
 --------------------------------------------------------- */
 
@@ -779,6 +1338,8 @@ export default function AIPMMEngine() {
     switch (active) {
       case "overview":
         return <Overview go={go} />;
+      case "lab":
+        return <LabSection />;
       case "pipeline":
         return <PipelineSection />;
       case "agents":
@@ -850,6 +1411,11 @@ export default function AIPMMEngine() {
         .pmm-engine .dot-violet { background: var(--violet); }
         .pmm-engine .dot-rose { background: var(--rose); }
         .pmm-engine ::selection { background: var(--accent); color: var(--bg); }
+        .pmm-engine .text-bg { color: var(--bg); }
+        .pmm-engine textarea, .pmm-engine input { font-family: inherit; }
+        .pmm-engine textarea:focus, .pmm-engine input:focus { outline: none; border-color: var(--accent); }
+        .pmm-engine ::placeholder { color: var(--faint); }
+        .pmm-engine button:disabled { opacity: .4; cursor: not-allowed; }
         .pmm-engine table { border-collapse: collapse; }
         .pmm-engine tr + tr td { border-top: 1px solid var(--border); }
       `}</style>
